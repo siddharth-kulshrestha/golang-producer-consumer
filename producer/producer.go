@@ -1,20 +1,19 @@
 package producer
 
-type Data struct {
-	Data interface{}
-	Err  error
+import (
+	"../consumer"
+	"../packet"
+)
+
+func init() {
+	New = NewDefaultProducer
 }
 
-func NewData(data interface{}, err error) Data {
-	return Data{
-		Data: data,
-		Err:  err,
-	}
-}
+type ProducerFunc func(args ...interface{}) ([]packet.Packet, bool, []interface{})
 
-type ProducerFunc func(args ...interface{}) (Data, bool, []interface{})
+var New func(consumer.Consumer, bool, ProducerFunc) Producer
 
 type Producer interface {
-	Produce(chan Data, ProducerFunc)
-	CallProducerFunc()
+	Produce(initialArgs []interface{})
+	Wait()
 }

@@ -3,7 +3,6 @@ package producer
 import (
 	"../consumer"
 	"../packet"
-	"fmt"
 	"log"
 	"sync"
 )
@@ -34,19 +33,10 @@ func (d *DefaultProducer) fetchAndReturn(initialArgs []interface{}) {
 	var shouldContinue bool
 	var args []interface{}
 	args = initialArgs
-	fmt.Println(args)
 
 	for {
-		fmt.Println("Restarting the loop")
 		packets, shouldContinue, args = d.ProducerFunc(args...)
-		log.Println("Fetched first set of data!")
-		log.Printf("Should Continue: %s\n\n", shouldContinue)
-		if !shouldContinue {
-			d.WaitGroup.Done()
-			return
-		}
 		for _, packet := range packets {
-			//opChannel <- packet
 			d.Consumer.Consume(packet)
 			if packet.Err != nil {
 				log.Fatalf("error occured while producing data.")
@@ -54,17 +44,14 @@ func (d *DefaultProducer) fetchAndReturn(initialArgs []interface{}) {
 				if d.ShouldContinueOnError {
 					continue
 				}
+				d.WaitGroup.Done()
 				return
 			}
 		}
-		fmt.Println("Calling select!!")
-		//select {
-		//case <-quitChan:
-		//log.Println("Received request to quit producer.")
-		//d.WaitGroup.Done()
-		//return
-		//}
-		fmt.Println("Reiterating!!")
+		if !shouldContinue {
+			d.WaitGroup.Done()
+			return
+		}
 	}
 }
 

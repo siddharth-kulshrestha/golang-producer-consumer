@@ -15,6 +15,7 @@ type DefaultConsumer struct {
 	ConsumerFunc ConsumerFunc
 }
 
+// NewDefaNewDefaultConsumer will return consumer where we can configure reqHandlerCount, maxPackets, and consumerFunc
 func NewDefaultConsumer(reqHandlerCount int, maxPackets int, consumerFunc ConsumerFunc) Consumer {
 	ipChannel := make(chan packet.Packet, maxPackets)
 	quitChannel := make(chan bool)
@@ -32,11 +33,13 @@ func NewDefaultConsumer(reqHandlerCount int, maxPackets int, consumerFunc Consum
 	return dc
 }
 
+// Consume will send packet to input channel
 func (dc *DefaultConsumer) Consume(packet packet.Packet) {
 	dc.WaitGroup.Add(1)
 	dc.IpChannel <- packet
 }
 
+// Wait will be used by client to wait for consumer to finish its job
 func (dc *DefaultConsumer) Wait() {
 	dc.WaitGroup.Wait()
 	for i := 0; i < dc.ReqHandlers; i++ {
@@ -44,6 +47,7 @@ func (dc *DefaultConsumer) Wait() {
 	}
 }
 
+// handlePackets will handle packets coming on IpChannel and quitChannel for exiting the function
 func (dc *DefaultConsumer) handlePackets() {
 	for {
 		select {

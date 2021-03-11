@@ -24,10 +24,12 @@ func NewDefaultProducer(cnsmr consumer.Consumer, shouldContinueOnError bool, pro
 	}
 }
 
+// Wait will be used by client to wait for producer to complete its job
 func (d *DefaultProducer) Wait() {
 	d.WaitGroup.Wait()
 }
 
+// fetchAndReturn calls producer function again and again until producer func returns shouldContinue as false
 func (d *DefaultProducer) fetchAndReturn(initialArgs []interface{}) {
 	var packets []packet.Packet
 	var shouldContinue bool
@@ -55,6 +57,7 @@ func (d *DefaultProducer) fetchAndReturn(initialArgs []interface{}) {
 	}
 }
 
+// Produce concurrently calls producer function after adding waitgroup.
 func (d *DefaultProducer) Produce(initialArgs []interface{}) {
 	log.Println("Producer started to produce data.")
 	d.WaitGroup.Add(1)

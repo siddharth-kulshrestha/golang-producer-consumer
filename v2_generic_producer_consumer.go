@@ -12,7 +12,7 @@ import "fmt"
 // Producer
 type Producer[T any] interface {
 	Produce() []T
-	Register()
+	Send()
 }
 
 // Worker
@@ -75,10 +75,23 @@ func (np *NumberProducer) Produce() []int {
 	return sl
 }
 
-func (np *NumberProducer) Register() {
-	go func() {
+func (np *NumberProducer) Send() {
+	// go func() {
 		for _, v := range np.Produce() {
 			np.ch <- v
 		}
-	}()
+	// }()
+}
+
+func ExampleNumberProducerConsumer() {
+	ch := make(chan int)
+	p := NewNumberProducer(ch)
+	p.Send()
+
+	pool := []Worker
+	for i=0; i < 3; i++ {
+		pool[i] = NewNumberWorker(ch)
+	}
+
+
 }

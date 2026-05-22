@@ -7,7 +7,10 @@ and a collector should aggregate all results into a single slice.
 
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"sync"
+)
 
 // Producer
 type Producer[T any] interface {
@@ -17,19 +20,21 @@ type Producer[T any] interface {
 
 // Worker
 type Worker[T any] interface {
-	ExtractAndProcess()
+	ExtractAndProcess(*sync.WaitGroup)
 	Process(data T) (T, error)
 }
 
 type NumberWorker struct {
 	ch    <-chan int
 	errCh chan error
+	id    int
 }
 
-func NewNumberWorker(ch <-chan int, errChan chan error) Worker[int] {
+func NewNumberWorker(id int, ch <-chan int, errChan chan error) Worker[int] {
 	return &NumberWorker{
 		ch:    ch,
 		errCh: errChan,
+		id:    id,
 	}
 }
 
@@ -38,10 +43,15 @@ func (nw *NumberWorker) Process(data int) (int, error) {
 
 }
 
-func (nw *NumberWorker) ExtractAndProcess() {
+func (nw *NumberWorker) ExtractAndProcess(wg *sync.WaitGroup) {
+	defer wg.Done()
 	for {
 		select {
-		case v := <-nw.ch:
+		case v, ok := <-nw.ch:
+			if !ok {
+				fmt.Println("Channel is closed")
+				return
+			}
 			ret, err := nw.Process(v)
 			if err != nil {
 				fmt.Println("error occured while processing: ")
@@ -52,6 +62,7 @@ func (nw *NumberWorker) ExtractAndProcess() {
 			if err != nil {
 				fmt.Println(err)
 				close(nw.errCh)
+				return
 			}
 		}
 	}
@@ -68,7 +79,7 @@ func NewNumberProducer(ch chan<- int) Producer[int] {
 }
 
 func (np *NumberProducer) Produce() []int {
-	sl := make([]int, 10)
+	sl := make([]int, 0, 10)
 	for i := 1; i <= 10; i += 1 {
 		sl = append(sl, i)
 	}
@@ -77,21 +88,34 @@ func (np *NumberProducer) Produce() []int {
 
 func (np *NumberProducer) Send() {
 	// go func() {
-		for _, v := range np.Produce() {
-			np.ch <- v
-		}
+	for _, v := range np.Produce() {
+		np.ch <- v
+	}
+	close(np.ch)
 	// }()
 }
 
 func ExampleNumberProducerConsumer() {
-	ch := make(chan int)
+	ch := make(chan int, 10)
+	errCh := make(chan error)
 	p := NewNumberProducer(ch)
 	p.Send()
 
-	pool := []Worker
-	for i=0; i < 3; i++ {
-		pool[i] = NewNumberWorker(ch)
+	wg := sync.WaitGroup{}
+
+	pool := make([]Worker[int], 3)
+	for i := 0; i < 3; i++ {
+		wg.Add(1)
+		pool[i] = NewNumberWorker(i, ch, errCh)
 	}
 
+	for _, w := range pool {
+		go w.ExtractAndProcess(&wg)
+	}
 
+	wg.Wait()
+}
+
+func main() {
+	ExampleNumberProducerConsumer()
 }

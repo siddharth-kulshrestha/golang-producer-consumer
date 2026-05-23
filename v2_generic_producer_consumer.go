@@ -10,6 +10,7 @@ package main
 import (
 	"fmt"
 	"sync"
+	"time"
 )
 
 // Producer
@@ -39,8 +40,14 @@ func NewNumberWorker(id int, ch <-chan int, errChan chan error) Worker[int] {
 }
 
 func (nw *NumberWorker) Process(data int) (int, error) {
+	time.Sleep(1000)
+
 	return data * 2, nil
 
+}
+
+func print(s string) {
+	fmt.Print(s)
 }
 
 func (nw *NumberWorker) ExtractAndProcess(wg *sync.WaitGroup) {
@@ -49,18 +56,18 @@ func (nw *NumberWorker) ExtractAndProcess(wg *sync.WaitGroup) {
 		select {
 		case v, ok := <-nw.ch:
 			if !ok {
-				fmt.Println("Channel is closed")
+				print(fmt.Sprintln("%d Channel is closed", nw.id))
 				return
 			}
 			ret, err := nw.Process(v)
 			if err != nil {
-				fmt.Println("error occured while processing: ")
-				fmt.Println(err)
+				print(fmt.Sprintln("%d error occured while processing: ", nw.id))
+				print(fmt.Sprintf("%d %v", nw.id, err.Error()))
 			}
-			fmt.Println(ret)
+			print(fmt.Sprintln(nw.id, ":", ret))
 		case err := <-nw.errCh:
 			if err != nil {
-				fmt.Println(err)
+				print(fmt.Sprintln("%d %v", nw.id, err))
 				close(nw.errCh)
 				return
 			}
